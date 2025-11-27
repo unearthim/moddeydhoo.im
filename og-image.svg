@@ -1,0 +1,53 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg" font-family="'Courier New', Courier, monospace">
+    <!-- 
+        OG Image for The Moddey Dhoo
+        An unearth.im Digital Monument
+        Theme: A single lantern's light in the oppressive dark of Peel Castle, with the creature watching.
+        Colors:
+        - Background: #050505 (Deep Black)
+        - Light/Text: #d4a373 (Old Gold)
+        - Eyes: #ff0000 (Red)
+    -->
+
+    <!-- Background -->
+    <rect width="1200" height="630" fill="#050505" />
+
+    <!-- Lantern Light Effect -->
+    <defs>
+        <radialGradient id="lanternGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#d4a373" stop-opacity="0.4" />
+            <stop offset="25%" stop-color="#d4a373" stop-opacity="0.1" />
+            <stop offset="40%" stop-color="#050505" stop-opacity="0.2" />
+            <stop offset="100%" stop-color="#050505" stop-opacity="1" />
+        </radialGradient>
+        <filter id="eyeGlow">
+            <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+            <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+        </filter>
+    </defs>
+    <rect width="1200" height="630" fill="url(#lanternGlow)" />
+
+    <!-- The Eyes of the Moddey Dhoo -->
+    <g filter="url(#eyeGlow)" opacity="0.7">
+        <circle cx="350" cy="250" r="8" fill="#ff0000" />
+        <circle cx="850" cy="250" r="8" fill="#ff0000" />
+    </g>
+
+    <!-- Main Title -->
+    <text x="600" y="300" font-size="72" font-weight="bold" fill="#d4a373" text-anchor="middle" letter-spacing="2">
+        THE MODDEY DHOO
+    </text>
+
+    <!-- Subtitle -->
+    <text x="600" y="360" font-size="24" fill="#8a8a8a" text-anchor="middle" letter-spacing="1">
+        Survive the haunted Peel Castle passage.
+    </text>
+
+    <!-- Domain -->
+    <text x="600" y="580" font-size="20" fill="#555" text-anchor="middle" letter-spacing="3">
+        MODDEYDHOO.IM
+    </text>
+</svg>

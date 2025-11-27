@@ -1,0 +1,1182 @@
+// The Moddey Dhoo - Peel Castle Haunting
+// Interactive gothic horror experience with haunting audio and darker visual palette
+
+const canvas = document.getElementById('castleCanvas');
+const ctx = canvas.getContext('2d');
+
+// Canvas setup
+let width = window.innerWidth;
+let height = window.innerHeight;
+canvas.width = width;
+canvas.height = height;
+
+// Application state
+let isPaused = false;
+let isBirdsEye = false;
+let intensityMultiplier = 1;
+let time = 0;
+
+// Audio System
+let audioContext = null;
+let masterGain = null;
+let ambienceGain = null;
+let ambienceNodes = [];
+let isAudioInitialized = false;
+let isMuted = false;
+let masterVolume = 0.5;
+let isFearWaveActive = false;
+let audioIndicator = null;
+let audioWaveBars = [];
+
+// Camera and view
+let cameraX = 0;
+let cameraY = 0;
+let zoomLevel = 1;
+let targetZoom = 1;
+
+// Phantom Dog (Moddey Dhoo)
+const dog = {
+    x: 0,
+    y: 0,
+    targetX: 0,
+    targetY: 0,
+    vx: 0,
+    vy: 0,
+    size: 35,
+    angle: 0,
+    spectralIntensity: 1
+};
+
+// Echo/Ripple system
+const ripples = [];
+const MAX_RIPPLES = 120;
+let lastRippleTime = 0;
+const RIPPLE_INTERVAL = 350;
+
+// Fear waves
+const fearWaves = [];
+
+// Relics
+const relics = [];
+const MAX_RELICS = 50;
+
+// Particles
+const particles = [];
+
+// Castle architecture
+const archways = [];
+const torches = [];
+const mistParticles = [];
+
+// Keyboard state
+const keys = {};
+
+// Update audio indicator
+function updateAudioIndicator() {
+    if (!audioIndicator) {
+        audioIndicator = document.getElementById('audioIndicator');
+        audioWaveBars = [
+            document.querySelector('.wave-1'),
+            document.querySelector('.wave-2'),
+            document.querySelector('.wave-3'),
+            document.querySelector('.wave-4'),
+            document.querySelector('.wave-5')
+        ];
+    }
+    
+    if (!audioIndicator) return;
+    
+    // Show/hide based on audio initialization
+    if (isAudioInitialized) {
+        audioIndicator.classList.add('active');
+    } else {
+        audioIndicator.classList.remove('active');
+    }
+    
+    // Update muted state
+    if (isMuted) {
+        audioIndicator.classList.add('muted');
+    } else {
+        audioIndicator.classList.remove('muted');
+    }
+    
+    // Update wave bar intensity based on volume
+    const volumeScale = isMuted ? 0.2 : masterVolume;
+    audioWaveBars.forEach((bar, index) => {
+        if (bar) {
+            const baseHeight = 4;
+            const maxHeight = 12;
+            const height = baseHeight + (maxHeight - baseHeight) * volumeScale;
+            bar.style.animation = `waveBar ${1.2}s ease-in-out infinite ${index * 0.15}s`;
+            bar.style.opacity = isMuted ? '0.3' : '1';
+        }
+    });
+}
+
+// Trigger fear pulse on indicator
+function triggerFearPulse() {
+    if (!audioIndicator) return;
+    
+    audioIndicator.classList.remove('fear-pulse');
+    void audioIndicator.offsetWidth; // Force reflow
+    audioIndicator.classList.add('fear-pulse');
+    
+    setTimeout(() => {
+        audioIndicator.classList.remove('fear-pulse');
+    }, 500);
+}
+
+// Initialize Audio System
+function initAudioSystem() {
+    if (isAudioInitialized) return;
+    
+    try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Master gain
+        masterGain = audioContext.createGain();
+        masterGain.gain.value = masterVolume;
+        masterGain.connect(audioContext.destination);
+        
+        // Ambience gain
+        ambienceGain = audioContext.createGain();
+        ambienceGain.gain.value = 0.12;
+        ambienceGain.connect(masterGain);
+        
+        startAmbience();
+        
+        isAudioInitialized = true;
+        console.log('Audio system initialized - haunting begins');
+        updateAudioIndicator();
+    } catch (e) {
+        console.warn('Web Audio API not supported:', e);
+    }
+}
+
+// Start continuous haunting ambience
+function startAmbience() {
+    if (!audioContext) return;
+    
+    // Deep subsonic rumble (ancient stone)
+    const rumble = audioContext.createOscillator();
+    rumble.type = 'sine';
+    rumble.frequency.value = 35;
+    const rumbleGain = audioContext.createGain();
+    rumbleGain.gain.value = 0.25;
+    rumble.connect(rumbleGain);
+    rumbleGain.connect(ambienceGain);
+    rumble.start();
+    ambienceNodes.push({ osc: rumble, gain: rumbleGain });
+    
+    // Low frequency drone (dread)
+    const drone = audioContext.createOscillator();
+    drone.type = 'sine';
+    drone.frequency.value = 60;
+    const droneGain = audioContext.createGain();
+    droneGain.gain.value = 0.18;
+    drone.connect(droneGain);
+    droneGain.connect(ambienceGain);
+    drone.start();
+    ambienceNodes.push({ osc: drone, gain: droneGain });
+    
+    // Wind howling through corridors (filtered noise)
+    const bufferSize = 4 * audioContext.sampleRate;
+    const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+    }
+    
+    const wind = audioContext.createBufferSource();
+    wind.buffer = noiseBuffer;
+    wind.loop = true;
+    
+    const windFilter = audioContext.createBiquadFilter();
+    windFilter.type = 'bandpass';
+    windFilter.frequency.value = 250;
+    windFilter.Q.value = 0.4;
+    
+    const windGain = audioContext.createGain();
+    windGain.gain.value = 0.08;
+    
+    wind.connect(windFilter);
+    windFilter.connect(windGain);
+    windGain.connect(ambienceGain);
+    wind.start();
+    
+    // Ethereal whispers (high frequency modulation)
+    const whisper = audioContext.createOscillator();
+    whisper.type = 'sine';
+    whisper.frequency.value = 1800;
+    const whisperGain = audioContext.createGain();
+    whisperGain.gain.value = 0.03;
+    const whisperLFO = audioContext.createOscillator();
+    whisperLFO.frequency.value = 0.2;
+    const whisperLFOGain = audioContext.createGain();
+    whisperLFOGain.gain.value = 0.02;
+    whisperLFO.connect(whisperLFOGain);
+    whisperLFOGain.connect(whisperGain.gain);
+    whisper.connect(whisperGain);
+    whisperGain.connect(ambienceGain);
+    whisper.start();
+    whisperLFO.start();
+    ambienceNodes.push({ osc: whisper }, { osc: whisperLFO });
+}
+
+// Play footstep echo sound
+function playFootstepEcho() {
+    if (!audioContext || isMuted || Math.random() > 0.2) return;
+    
+    const now = audioContext.currentTime;
+    const duration = 0.4;
+    
+    // Stone impact
+    const osc = audioContext.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = 120 + Math.random() * 40;
+    
+    const filter = audioContext.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 300;
+    filter.Q.value = 2;
+    
+    const gain = audioContext.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.08 * intensityMultiplier, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(masterGain);
+    
+    osc.start(now);
+    osc.stop(now + duration);
+    
+    // Echo tail
+    const echo = audioContext.createOscillator();
+    echo.type = 'sine';
+    echo.frequency.value = 90;
+    const echoGain = audioContext.createGain();
+    const echoStart = now + 0.15;
+    echoGain.gain.setValueAtTime(0, echoStart);
+    echoGain.gain.linearRampToValueAtTime(0.04, echoStart + 0.02);
+    echoGain.gain.exponentialRampToValueAtTime(0.001, echoStart + 0.6);
+    echo.connect(echoGain);
+    echoGain.connect(masterGain);
+    echo.start(echoStart);
+    echo.stop(echoStart + 0.6);
+}
+
+// Play spectral dog sounds
+function playSpectralDogSound() {
+    if (!audioContext || isMuted || Math.random() > 0.05) return;
+    
+    const now = audioContext.currentTime;
+    const soundType = Math.random();
+    
+    if (soundType < 0.4) {
+        // Spectral whining
+        const whine = audioContext.createOscillator();
+        whine.type = 'sine';
+        whine.frequency.setValueAtTime(800, now);
+        whine.frequency.exponentialRampToValueAtTime(400, now + 0.5);
+        
+        const whineGain = audioContext.createGain();
+        whineGain.gain.setValueAtTime(0, now);
+        whineGain.gain.linearRampToValueAtTime(0.06, now + 0.1);
+        whineGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        
+        whine.connect(whineGain);
+        whineGain.connect(masterGain);
+        whine.start(now);
+        whine.stop(now + 0.5);
+    } else if (soundType < 0.7) {
+        // Low growl
+        const growl = audioContext.createOscillator();
+        growl.type = 'sawtooth';
+        growl.frequency.value = 80 + Math.random() * 20;
+        
+        const growlFilter = audioContext.createBiquadFilter();
+        growlFilter.type = 'lowpass';
+        growlFilter.frequency.value = 200;
+        
+        const growlGain = audioContext.createGain();
+        growlGain.gain.setValueAtTime(0, now);
+        growlGain.gain.linearRampToValueAtTime(0.05, now + 0.05);
+        growlGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        
+        growl.connect(growlFilter);
+        growlFilter.connect(growlGain);
+        growlGain.connect(masterGain);
+        growl.start(now);
+        growl.stop(now + 0.4);
+    }
+}
+
+// Play torch crackle
+function playTorchCrackle() {
+    if (!audioContext || isMuted || Math.random() > 0.02) return;
+    
+    const now = audioContext.currentTime;
+    const bufferSize = audioContext.sampleRate * 0.05;
+    const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+    const data = buffer.getChannelData(0);
+    
+    for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+    }
+    
+    const crackle = audioContext.createBufferSource();
+    crackle.buffer = buffer;
+    
+    const crackleFilter = audioContext.createBiquadFilter();
+    crackleFilter.type = 'highpass';
+    crackleFilter.frequency.value = 2000;
+    
+    const crackleGain = audioContext.createGain();
+    crackleGain.gain.value = 0.015;
+    
+    crackle.connect(crackleFilter);
+    crackleFilter.connect(crackleGain);
+    crackleGain.connect(masterGain);
+    crackle.start(now);
+}
+
+// Play fear wave sound (haunting wail/scream)
+function playFearWaveSound() {
+    if (!audioContext || isMuted || isFearWaveActive) return;
+    
+    isFearWaveActive = true;
+    triggerFearPulse();
+    const now = audioContext.currentTime;
+    const duration = 2.5;
+    
+    // Deep pulsing hum rising into ethereal scream
+    const fundamentals = [100, 150, 200, 300];
+    
+    fundamentals.forEach((freq, index) => {
+        const osc = audioContext.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.exponentialRampToValueAtTime(freq * 3, now + 1.0);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.8, now + duration);
+        
+        const filter = audioContext.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(400, now);
+        filter.frequency.exponentialRampToValueAtTime(1200, now + 1.0);
+        filter.Q.value = 3;
+        
+        const gain = audioContext.createGain();
+        const vol = 0.15 / (index + 1);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(vol, now + 0.3);
+        gain.gain.setValueAtTime(vol, now + 1.2);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(masterGain);
+        
+        osc.start(now);
+        osc.stop(now + duration);
+    });
+    
+    // Reverb tail with metallic ringing
+    const reverb = audioContext.createOscillator();
+    reverb.type = 'sine';
+    reverb.frequency.setValueAtTime(600, now + 1.0);
+    reverb.frequency.exponentialRampToValueAtTime(200, now + duration + 1.5);
+    
+    const reverbGain = audioContext.createGain();
+    reverbGain.gain.setValueAtTime(0, now + 1.0);
+    reverbGain.gain.linearRampToValueAtTime(0.08, now + 1.2);
+    reverbGain.gain.exponentialRampToValueAtTime(0.001, now + duration + 1.5);
+    
+    reverb.connect(reverbGain);
+    reverbGain.connect(masterGain);
+    reverb.start(now + 1.0);
+    reverb.stop(now + duration + 1.5);
+    
+    setTimeout(() => {
+        isFearWaveActive = false;
+    }, 1000);
+}
+
+// Play relic formation sound
+function playRelicSound() {
+    if (!audioContext || isMuted) return;
+    
+    const now = audioContext.currentTime;
+    
+    // Crystalline shimmer
+    const frequencies = [1200, 1600, 2000, 2400];
+    
+    frequencies.forEach((freq, index) => {
+        const osc = audioContext.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        
+        const gain = audioContext.createGain();
+        const startTime = now + index * 0.05;
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.04, startTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+        
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(startTime);
+        osc.stop(startTime + 0.4);
+    });
+    
+    // Low harmonic tone
+    const bass = audioContext.createOscillator();
+    bass.type = 'sine';
+    bass.frequency.value = 150;
+    const bassGain = audioContext.createGain();
+    bassGain.gain.setValueAtTime(0, now + 0.1);
+    bassGain.gain.linearRampToValueAtTime(0.06, now + 0.15);
+    bassGain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+    bass.connect(bassGain);
+    bassGain.connect(masterGain);
+    bass.start(now + 0.1);
+    bass.stop(now + 0.8);
+}
+
+// Set master volume
+function setVolume(value) {
+    masterVolume = value;
+    if (audioContext && masterGain) {
+        masterGain.gain.setValueAtTime(isMuted ? 0 : masterVolume, audioContext.currentTime);
+    }
+    updateAudioIndicator();
+}
+
+// Toggle mute
+function toggleMute() {
+    isMuted = !isMuted;
+    if (audioContext && masterGain) {
+        masterGain.gain.setValueAtTime(isMuted ? 0 : masterVolume, audioContext.currentTime);
+    }
+    const muteBtn = document.getElementById('muteBtn');
+    if (muteBtn) {
+        muteBtn.textContent = isMuted ? '🔇 Unmute' : '🔊 Mute';
+    }
+    updateAudioIndicator();
+}
+
+// Initialize scene
+function initScene() {
+    // Create archways
+    for (let i = 0; i < 15; i++) {
+        archways.push({
+            distance: i * 120 + 100,
+            width: 280 - i * 15,
+            height: 350 - i * 20,
+            alpha: Math.max(0.15, 1 - i * 0.08)
+        });
+    }
+    
+    // Create torches
+    const torchPositions = [
+        { x: -300, y: -150 },
+        { x: -300, y: 150 },
+        { x: 300, y: -150 },
+        { x: 300, y: 150 },
+        { x: -500, y: 0 },
+        { x: 500, y: 0 }
+    ];
+    
+    torchPositions.forEach(pos => {
+        torches.push({
+            x: pos.x,
+            y: pos.y,
+            flicker: Math.random() * Math.PI * 2,
+            flickerSpeed: 0.08 + Math.random() * 0.04,
+            intensity: 0.4 + Math.random() * 0.2
+        });
+    });
+    
+    // Create mist particles
+    for (let i = 0; i < 80; i++) {
+        mistParticles.push({
+            x: (Math.random() - 0.5) * width * 2,
+            y: (Math.random() - 0.5) * height * 2,
+            z: Math.random(),
+            vx: (Math.random() - 0.5) * 0.3,
+            vy: (Math.random() - 0.5) * 0.3,
+            size: 20 + Math.random() * 40,
+            alpha: 0.02 + Math.random() * 0.04
+        });
+    }
+}
+
+// Draw scene
+function drawScene() {
+    // Deep dark background
+    const bgGradient = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, Math.max(width, height) / 1.5);
+    bgGradient.addColorStop(0, '#12121a');
+    bgGradient.addColorStop(0.6, '#0a0a0f');
+    bgGradient.addColorStop(1, '#050508');
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, width, height);
+}
+
+// Draw mist
+function drawMist() {
+    mistParticles.forEach(mist => {
+        mist.x += mist.vx;
+        mist.y += mist.vy;
+        
+        // Wrap around
+        if (mist.x < -width) mist.x = width;
+        if (mist.x > width) mist.x = -width;
+        if (mist.y < -height) mist.y = height;
+        if (mist.y > height) mist.y = -height;
+        
+        const screenX = width / 2 + (mist.x - cameraX * (1 - mist.z)) * zoomLevel;
+        const screenY = height / 2 + (mist.y - cameraY * (1 - mist.z)) * zoomLevel;
+        
+        const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, mist.size * zoomLevel);
+        gradient.addColorStop(0, `rgba(60, 55, 70, ${mist.alpha * intensityMultiplier})`);
+        gradient.addColorStop(0.5, `rgba(40, 38, 50, ${mist.alpha * 0.6 * intensityMultiplier})`);
+        gradient.addColorStop(1, 'rgba(30, 28, 40, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, mist.size * zoomLevel, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
+
+// Draw castle architecture
+function drawArchitecture() {
+    ctx.save();
+    ctx.translate(width / 2 - cameraX * zoomLevel, height / 2 - cameraY * zoomLevel);
+    ctx.scale(zoomLevel, zoomLevel);
+    
+    // Draw receding archways
+    archways.forEach((arch, i) => {
+        ctx.globalAlpha = arch.alpha * intensityMultiplier;
+        
+        // Stone arch
+        ctx.strokeStyle = `rgba(40, 38, 45, ${0.8 * arch.alpha})`;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(0, 0, arch.width / 2, Math.PI, 0, false);
+        ctx.stroke();
+        
+        // Vertical pillars
+        ctx.fillStyle = `rgba(35, 33, 40, ${0.6 * arch.alpha})`;
+        ctx.fillRect(-arch.width / 2 - 15, 0, 15, arch.height / 2);
+        ctx.fillRect(arch.width / 2, 0, 15, arch.height / 2);
+        
+        // Shadow detail
+        ctx.strokeStyle = `rgba(20, 18, 25, ${0.5 * arch.alpha})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, arch.width / 2 - 5, Math.PI, 0, false);
+        ctx.stroke();
+    });
+    
+    ctx.globalAlpha = 1;
+    ctx.restore();
+}
+
+// Draw torches
+function drawTorches() {
+    ctx.save();
+    ctx.translate(width / 2 - cameraX * zoomLevel, height / 2 - cameraY * zoomLevel);
+    ctx.scale(zoomLevel, zoomLevel);
+    
+    torches.forEach(torch => {
+        torch.flicker += torch.flickerSpeed;
+        const flicker = Math.sin(torch.flicker) * 0.3 + 0.7;
+        const intensity = torch.intensity * flicker * intensityMultiplier;
+        
+        // Weak amber glow
+        const glowGradient = ctx.createRadialGradient(torch.x, torch.y, 0, torch.x, torch.y, 60);
+        glowGradient.addColorStop(0, `rgba(180, 100, 40, ${0.15 * intensity})`);
+        glowGradient.addColorStop(0.5, `rgba(140, 70, 30, ${0.08 * intensity})`);
+        glowGradient.addColorStop(1, 'rgba(100, 50, 20, 0)');
+        ctx.fillStyle = glowGradient;
+        ctx.beginPath();
+        ctx.arc(torch.x, torch.y, 60, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Torch flame (barely visible)
+        ctx.fillStyle = `rgba(200, 120, 50, ${0.3 * intensity})`;
+        ctx.beginPath();
+        ctx.ellipse(torch.x, torch.y - 5, 4, 8 + flicker * 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Play crackle sound
+        playTorchCrackle();
+    });
+    
+    ctx.restore();
+}
+
+// Draw phantom dog
+function drawPhantomDog() {
+    ctx.save();
+    ctx.translate(width / 2 - cameraX * zoomLevel, height / 2 - cameraY * zoomLevel);
+    ctx.scale(zoomLevel, zoomLevel);
+    
+    const pulse = Math.sin(time * 0.003) * 0.2 + 0.8;
+    dog.spectralIntensity = pulse;
+    
+    // Spectral aura (dark purple glow)
+    const auraGradient = ctx.createRadialGradient(dog.x, dog.y, 0, dog.x, dog.y, dog.size * 2.5);
+    auraGradient.addColorStop(0, `rgba(90, 60, 120, ${0.3 * pulse * intensityMultiplier})`);
+    auraGradient.addColorStop(0.5, `rgba(70, 50, 100, ${0.15 * pulse * intensityMultiplier})`);
+    auraGradient.addColorStop(1, 'rgba(50, 40, 80, 0)');
+    ctx.fillStyle = auraGradient;
+    ctx.beginPath();
+    ctx.arc(dog.x, dog.y, dog.size * 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Dog body (semi-transparent dark form)
+    ctx.globalAlpha = 0.7 * pulse;
+    
+    // Main body
+    const bodyGradient = ctx.createRadialGradient(dog.x, dog.y, 0, dog.x, dog.y, dog.size);
+    bodyGradient.addColorStop(0, 'rgba(40, 35, 50, 0.9)');
+    bodyGradient.addColorStop(0.7, 'rgba(20, 18, 30, 0.7)');
+    bodyGradient.addColorStop(1, 'rgba(10, 8, 15, 0.3)');
+    ctx.fillStyle = bodyGradient;
+    ctx.beginPath();
+    ctx.ellipse(dog.x, dog.y, dog.size * 0.9, dog.size * 0.6, dog.angle, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Head
+    const headX = dog.x + Math.cos(dog.angle) * dog.size * 0.8;
+    const headY = dog.y + Math.sin(dog.angle) * dog.size * 0.8;
+    ctx.fillStyle = 'rgba(30, 25, 40, 0.85)';
+    ctx.beginPath();
+    ctx.arc(headX, headY, dog.size * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Glowing eyes (eerie)
+    ctx.globalAlpha = 1;
+    const eyeOffset = dog.size * 0.2;
+    const eye1X = headX + Math.cos(dog.angle + Math.PI / 4) * eyeOffset;
+    const eye1Y = headY + Math.sin(dog.angle + Math.PI / 4) * eyeOffset;
+    const eye2X = headX + Math.cos(dog.angle - Math.PI / 4) * eyeOffset;
+    const eye2Y = headY + Math.sin(dog.angle - Math.PI / 4) * eyeOffset;
+    
+    [{ x: eye1X, y: eye1Y }, { x: eye2X, y: eye2Y }].forEach(eye => {
+        const eyeGlow = ctx.createRadialGradient(eye.x, eye.y, 0, eye.x, eye.y, 8);
+        eyeGlow.addColorStop(0, `rgba(120, 80, 160, ${0.9 * pulse})`);
+        eyeGlow.addColorStop(0.5, `rgba(90, 60, 130, ${0.5 * pulse})`);
+        eyeGlow.addColorStop(1, 'rgba(70, 50, 100, 0)');
+        ctx.fillStyle = eyeGlow;
+        ctx.beginPath();
+        ctx.arc(eye.x, eye.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = `rgba(140, 100, 180, ${0.9 * pulse})`;
+        ctx.beginPath();
+        ctx.arc(eye.x, eye.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    
+    // Spectral particles around dog
+    for (let i = 0; i < 5; i++) {
+        const angle = (time * 0.001 + i * Math.PI * 2 / 5) % (Math.PI * 2);
+        const dist = dog.size * 1.5 + Math.sin(time * 0.002 + i) * 10;
+        const px = dog.x + Math.cos(angle) * dist;
+        const py = dog.y + Math.sin(angle) * dist;
+        
+        const particleGlow = ctx.createRadialGradient(px, py, 0, px, py, 5);
+        particleGlow.addColorStop(0, `rgba(100, 70, 140, ${0.4 * pulse * intensityMultiplier})`);
+        particleGlow.addColorStop(1, 'rgba(80, 60, 120, 0)');
+        ctx.fillStyle = particleGlow;
+        ctx.beginPath();
+        ctx.arc(px, py, 5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    ctx.globalAlpha = 1;
+    ctx.restore();
+}
+
+// Create ripple
+function createRipple() {
+    if (ripples.length >= MAX_RIPPLES) {
+        ripples.shift();
+    }
+    
+    ripples.push({
+        x: dog.x,
+        y: dog.y,
+        radius: 5,
+        alpha: 0.7,
+        speed: 2
+    });
+    
+    playFootstepEcho();
+}
+
+// Draw ripples
+function drawRipples() {
+    ctx.save();
+    ctx.translate(width / 2 - cameraX * zoomLevel, height / 2 - cameraY * zoomLevel);
+    ctx.scale(zoomLevel, zoomLevel);
+    
+    ripples.forEach(ripple => {
+        ripple.radius += ripple.speed;
+        ripple.alpha -= 0.008;
+        
+        if (ripple.alpha > 0) {
+            // Main ring (dark purple/blue)
+            ctx.strokeStyle = `rgba(80, 60, 120, ${ripple.alpha * intensityMultiplier})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(ripple.x, ripple.y, ripple.radius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Inner glow
+            ctx.strokeStyle = `rgba(100, 80, 140, ${ripple.alpha * 0.5 * intensityMultiplier})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(ripple.x, ripple.y, ripple.radius * 0.9, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+    });
+    
+    // Remove faded ripples
+    while (ripples.length > 0 && ripples[0].alpha <= 0) {
+        ripples.shift();
+    }
+    
+    ctx.restore();
+}
+
+// Create fear wave
+function createFearWave() {
+    playFearWaveSound();
+    playSpectralDogSound();
+    
+    // Create multiple wave rings
+    for (let i = 0; i < 6; i++) {
+        fearWaves.push({
+            x: dog.x,
+            y: dog.y,
+            radius: 10 + i * 8,
+            alpha: 0.9,
+            speed: 3.5 + i * 0.3,
+            hue: 260 + i * 5
+        });
+    }
+    
+    // Create relic
+    createRelic();
+    
+    // Particle burst
+    for (let i = 0; i < 40; i++) {
+        const angle = (i / 40) * Math.PI * 2;
+        const speed = 2 + Math.random() * 3;
+        particles.push({
+            x: dog.x,
+            y: dog.y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            alpha: 1,
+            size: 2 + Math.random() * 4,
+            color: `hsl(${260 + Math.random() * 30}, 60%, 50%)`
+        });
+    }
+}
+
+// Draw fear waves
+function drawFearWaves() {
+    ctx.save();
+    ctx.translate(width / 2 - cameraX * zoomLevel, height / 2 - cameraY * zoomLevel);
+    ctx.scale(zoomLevel, zoomLevel);
+    
+    fearWaves.forEach(wave => {
+        wave.radius += wave.speed;
+        wave.alpha -= 0.012;
+        
+        if (wave.alpha > 0) {
+            // Warping wave effect
+            ctx.strokeStyle = `hsla(${wave.hue}, 50%, 35%, ${wave.alpha * intensityMultiplier})`;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Outer glow
+            ctx.strokeStyle = `hsla(${wave.hue}, 60%, 45%, ${wave.alpha * 0.4 * intensityMultiplier})`;
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+    });
+    
+    // Remove faded waves
+    for (let i = fearWaves.length - 1; i >= 0; i--) {
+        if (fearWaves[i].alpha <= 0) {
+            fearWaves.splice(i, 1);
+        }
+    }
+    
+    ctx.restore();
+}
+
+// Create relic
+function createRelic() {
+    if (relics.length >= MAX_RELICS) {
+        relics.shift();
+    }
+    
+    relics.push({
+        x: dog.x,
+        y: dog.y,
+        type: Math.floor(Math.random() * 3),
+        creationTime: time,
+        intensity: 1,
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 0.002,
+        pulsePhase: Math.random() * Math.PI * 2,
+        size: 25 + Math.random() * 15
+    });
+    
+    playRelicSound();
+}
+
+// Draw relics
+function drawRelics() {
+    ctx.save();
+    ctx.translate(width / 2 - cameraX * zoomLevel, height / 2 - cameraY * zoomLevel);
+    ctx.scale(zoomLevel, zoomLevel);
+    
+    relics.forEach(relic => {
+        const age = (time - relic.creationTime) / 1000;
+        const ageFade = Math.max(0.25, 1 - age / 100);
+        const pulse = Math.sin(time * 0.002 + relic.pulsePhase) * 0.2 + 0.8;
+        const alpha = relic.intensity * ageFade * pulse * intensityMultiplier;
+        
+        relic.rotation += relic.rotationSpeed;
+        
+        ctx.save();
+        ctx.translate(relic.x, relic.y);
+        ctx.rotate(relic.rotation);
+        ctx.globalAlpha = alpha;
+        
+        if (relic.type === 0) {
+            // Sigil circle
+            ctx.strokeStyle = 'rgba(100, 70, 140, 0.7)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, relic.size, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Inner pattern
+            for (let i = 0; i < 6; i++) {
+                const angle = (i / 6) * Math.PI * 2;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(Math.cos(angle) * relic.size, Math.sin(angle) * relic.size);
+                ctx.stroke();
+            }
+        } else if (relic.type === 1) {
+            // Diamond shape
+            ctx.fillStyle = 'rgba(90, 60, 130, 0.2)';
+            ctx.strokeStyle = 'rgba(110, 80, 150, 0.7)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, -relic.size);
+            ctx.lineTo(relic.size * 0.6, 0);
+            ctx.lineTo(0, relic.size);
+            ctx.lineTo(-relic.size * 0.6, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        } else {
+            // Spiral
+            ctx.strokeStyle = 'rgba(100, 70, 140, 0.7)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i <= 30; i++) {
+                const t = i / 30;
+                const angle = t * Math.PI * 4;
+                const r = t * relic.size;
+                const x = Math.cos(angle) * r;
+                const y = Math.sin(angle) * r;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Central glow
+        const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, relic.size * 0.5);
+        glow.addColorStop(0, 'rgba(120, 80, 160, 0.4)');
+        glow.addColorStop(1, 'rgba(90, 60, 130, 0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(-relic.size * 0.5, -relic.size * 0.5, relic.size, relic.size);
+        
+        ctx.restore();
+    });
+    
+    ctx.restore();
+}
+
+// Draw particles
+function drawParticles() {
+    ctx.save();
+    ctx.translate(width / 2 - cameraX * zoomLevel, height / 2 - cameraY * zoomLevel);
+    ctx.scale(zoomLevel, zoomLevel);
+    
+    particles.forEach(particle => {
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        particle.vx *= 0.97;
+        particle.vy *= 0.97;
+        particle.alpha -= 0.02;
+        
+        if (particle.alpha > 0) {
+            ctx.fillStyle = particle.color.replace(')', `, ${particle.alpha})`);
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+    
+    // Remove faded particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        if (particles[i].alpha <= 0) {
+            particles.splice(i, 1);
+        }
+    }
+    
+    ctx.restore();
+}
+
+// Update dog movement
+function updateDog() {
+    const dx = dog.targetX - dog.x;
+    const dy = dog.targetY - dog.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist > 3) {
+        dog.angle = Math.atan2(dy, dx);
+        const accel = 0.1;
+        dog.vx += (dx / dist) * accel;
+        dog.vy += (dy / dist) * accel;
+    }
+    
+    dog.vx *= 0.9;
+    dog.vy *= 0.9;
+    
+    dog.x += dog.vx;
+    dog.y += dog.vy;
+    
+    // Bounds
+    dog.x = Math.max(-400, Math.min(400, dog.x));
+    dog.y = Math.max(-300, Math.min(300, dog.y));
+    
+    // Camera follows
+    cameraX += (dog.x - cameraX) * 0.05;
+    cameraY += (dog.y - cameraY) * 0.05;
+}
+
+// Handle input
+function handleInput() {
+    const speed = 5;
+    
+    if (keys['ArrowUp'] || keys['w'] || keys['W']) {
+        dog.targetY -= speed;
+    }
+    if (keys['ArrowDown'] || keys['s'] || keys['S']) {
+        dog.targetY += speed;
+    }
+    if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+        dog.targetX -= speed;
+    }
+    if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+        dog.targetX += speed;
+    }
+}
+
+// Animation loop
+let lastTime = Date.now();
+function animate() {
+    if (!isPaused) {
+        const currentTime = Date.now();
+        time = currentTime;
+        
+        zoomLevel += (targetZoom - zoomLevel) * 0.05;
+        
+        ctx.clearRect(0, 0, width, height);
+        
+        drawScene();
+        drawMist();
+        drawArchitecture();
+        drawTorches();
+        
+        handleInput();
+        updateDog();
+        
+        // Auto-create ripples
+        if (time - lastRippleTime > RIPPLE_INTERVAL && (Math.abs(dog.vx) > 0.1 || Math.abs(dog.vy) > 0.1)) {
+            createRipple();
+            lastRippleTime = time;
+            playSpectralDogSound();
+        }
+        
+        drawRipples();
+        drawFearWaves();
+        drawRelics();
+        drawParticles();
+        drawPhantomDog();
+        
+        lastTime = currentTime;
+    }
+    
+    requestAnimationFrame(animate);
+}
+
+// Event listeners
+document.getElementById('intensitySlider').addEventListener('input', (e) => {
+    intensityMultiplier = parseFloat(e.target.value);
+});
+
+document.getElementById('volumeSlider').addEventListener('input', (e) => {
+    setVolume(parseFloat(e.target.value));
+});
+
+document.getElementById('muteBtn').addEventListener('click', () => {
+    toggleMute();
+});
+
+document.getElementById('pauseBtn').addEventListener('click', () => {
+    isPaused = !isPaused;
+    document.getElementById('pauseBtn').textContent = isPaused ? 'Play' : 'Pause';
+    if (!isPaused) lastTime = Date.now();
+    
+    // Pause/resume audio
+    if (audioContext) {
+        if (isPaused) {
+            audioContext.suspend();
+        } else {
+            audioContext.resume();
+        }
+    }
+    updateAudioIndicator();
+});
+
+document.getElementById('viewBtn').addEventListener('click', () => {
+    isBirdsEye = !isBirdsEye;
+    targetZoom = isBirdsEye ? 0.3 : 1;
+    document.getElementById('viewBtn').textContent = isBirdsEye ? 'Normal View' : "Bird's Eye (V)";
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+    dog.x = 0;
+    dog.y = 0;
+    dog.targetX = 0;
+    dog.targetY = 0;
+    dog.vx = 0;
+    dog.vy = 0;
+    ripples.length = 0;
+    fearWaves.length = 0;
+    relics.length = 0;
+    particles.length = 0;
+    cameraX = 0;
+    cameraY = 0;
+});
+
+document.getElementById('infoBtn').addEventListener('click', () => {
+    document.getElementById('artistModal').classList.add('active');
+});
+
+// Keyboard events
+window.addEventListener('keydown', (e) => {
+    keys[e.key] = true;
+    
+    if (e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        createFearWave();
+    }
+    
+    if (e.key === 'v' || e.key === 'V') {
+        document.getElementById('viewBtn').click();
+    }
+    
+    if (e.key === 'p' || e.key === 'P') {
+        document.getElementById('pauseBtn').click();
+    }
+    
+    if (e.key === 'i' || e.key === 'I') {
+        document.getElementById('artistModal').classList.add('active');
+    }
+    
+    if (e.key === 'Escape') {
+        document.getElementById('artistModal').classList.remove('active');
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    keys[e.key] = false;
+});
+
+// Mouse click
+canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    const worldX = ((mouseX - width / 2) / zoomLevel) + cameraX;
+    const worldY = ((mouseY - height / 2) / zoomLevel) + cameraY;
+    
+    dog.targetX = Math.max(-400, Math.min(400, worldX));
+    dog.targetY = Math.max(-300, Math.min(300, worldY));
+});
+
+// Window resize
+window.addEventListener('resize', () => {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+});
+
+// Enter castle
+function enterCastle() {
+    document.getElementById('introModal').classList.add('hidden');
+    document.getElementById('infoPanel').style.display = 'block';
+    document.getElementById('instructions').style.display = 'block';
+    document.getElementById('controlsBar').style.display = 'flex';
+    
+    initAudioSystem();
+}
+
+// Close modal
+function closeModal() {
+    document.getElementById('artistModal').classList.remove('active');
+}
+
+// Modal click outside
+document.getElementById('artistModal').addEventListener('click', (e) => {
+    if (e.target.id === 'artistModal') {
+        closeModal();
+    }
+});
+
+window.enterCastle = enterCastle;
+window.closeModal = closeModal;
+
+// Initialize and start
+initScene();
+animate();
+
+// Update indicator periodically
+setInterval(() => {
+    if (isAudioInitialized) {
+        updateAudioIndicator();
+    }
+}, 100);

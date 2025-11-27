@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Moddey Dhoo - Peel Castle Haunting</title>
+    <style>
+        :root {
+  --color-white: rgba(255, 255, 255, 1);
+  --color-black: rgba(0, 0, 0, 1);
+  --color-cream-50: rgba(252, 252, 249, 1);
+  --color-cream-100: rgba(255, 255, 253, 1);
+  --color-gray-200: rgba(245, 245, 245, 1);
+  --color-gray-300: rgba(167, 169, 169, 1);
+  --color-gray-400: rgba(119, 124, 124, 1);
+  --color-slate-500: rgba(98, 108, 113, 1);
+  --color-brown-600: rgba(94, 82, 64, 1);
+  --color-charcoal-700: rgba(31, 33, 33, 1);
+  --color-charcoal-800: rgba(38, 40, 40, 1);
+  --color-slate-900: rgba(19, 52, 59, 1);
+  --color-teal-300: rgba(50, 184, 198, 1);
+  --color-teal-400: rgba(45, 166, 178, 1);
+  --color-teal-500: rgba(33, 128, 141, 1);
+  --color-teal-600: rgba(29, 116, 128, 1);
+  --color-teal-700: rgba(26, 104, 115, 1);
+  --color-teal-800: rgba(41, 150, 161, 1);
+  --color-red-400: rgba(255, 84, 89, 1);
+  --color-red-500: rgba(192, 21, 47, 1);
+  --color-orange-400: rgba(230, 129, 97, 1);
+  --color-orange-500: rgba(168, 75, 47, 1);
+
+  --font-family-base: "FKGroteskNeue", "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 20px;
+  --font-size-3xl: 24px;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 550;
+  --font-weight-bold: 600;
+
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+
+  --radius-base: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-family-base);
+    overflow: hidden;
+    background: #0a0a0f;
+    color: rgba(245, 245, 245, 0.9);
+}
+
+#castleCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #0a0a0f;
+}
+
+.ui-overlay {
+    position: fixed;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.ui-overlay * {
+    pointer-events: auto;
+}
+
+.intro-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(10, 10, 15, 0.98);
+    backdrop-filter: blur(12px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+
+.intro-modal.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.intro-content {
+    max-width: 700px;
+    padding: var(--space-32);
+    text-align: center;
+}
+
+.intro-content h1 {
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-bold);
+    color: rgba(138, 110, 180, 0.9);
+    margin-bottom: var(--space-16);
+    letter-spacing: 0.05em;
+}
+
+.intro-content .subtitle {
+    font-size: var(--font-size-lg);
+    color: rgba(200, 190, 220, 0.7);
+    margin-bottom: var(--space-24);
+    font-style: italic;
+}
+
+.intro-content p {
+    font-size: var(--font-size-base);
+    color: rgba(180, 180, 200, 0.8);
+    line-height: 1.7;
+    margin-bottom: var(--space-16);
+}
+
+.mythology-box {
+    background: rgba(60, 40, 80, 0.15);
+    border: 1px solid rgba(138, 110, 180, 0.25);
+    border-radius: var(--radius-lg);
+    padding: var(--space-20);
+    margin-top: var(--space-24);
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+    color: rgba(190, 180, 210, 0.85);
+}
+
+.begin-btn {
+    margin-top: var(--space-32);
+    padding: var(--space-12) var(--space-32);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    background: rgba(80, 50, 120, 0.3);
+    color: rgba(180, 150, 220, 0.9);
+    border: 1px solid rgba(138, 110, 180, 0.4);
+    border-radius: var(--radius-base);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: var(--font-family-base);
+}
+
+.begin-btn:hover {
+    background: rgba(80, 50, 120, 0.5);
+    border-color: rgba(138, 110, 180, 0.6);
+    transform: translateY(-2px);
+}
+
+.controls-bar {
+    bottom: var(--space-24);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: var(--space-12);
+    align-items: center;
+    background: rgba(15, 15, 25, 0.9);
+    padding: var(--space-12) var(--space-24);
+    border-radius: var(--radius-full);
+    border: 1px solid rgba(80, 70, 100, 0.3);
+    backdrop-filter: blur(10px);
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 95vw;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+}
+
+.control-label {
+    font-size: var(--font-size-sm);
+    color: rgba(180, 170, 200, 0.8);
+    white-space: nowrap;
+}
+
+.slider {
+    width: 90px;
+    height: 4px;
+    border-radius: var(--radius-full);
+    background: rgba(80, 60, 110, 0.3);
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(138, 110, 180, 0.9);
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(138, 110, 180, 0.4);
+}
+
+.slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(138, 110, 180, 0.9);
+    cursor: pointer;
+    border: none;
+}
+
+.btn {
+    padding: var(--space-8) var(--space-16);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    background: rgba(80, 50, 120, 0.2);
+    color: rgba(180, 150, 220, 0.9);
+    border: 1px solid rgba(100, 80, 140, 0.3);
+    border-radius: var(--radius-base);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: var(--font-family-base);
+    white-space: nowrap;
+}
+
+.btn:hover {
+    background: rgba(80, 50, 120, 0.35);
+    border-color: rgba(138, 110, 180, 0.5);
+}
+
+.btn:active {
+    transform: scale(0.96);
+}
+
+.info-panel {
+    top: var(--space-24);
+    left: var(--space-24);
+    background: rgba(15, 15, 25, 0.85);
+    padding: var(--space-16);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(80, 70, 100, 0.3);
+    backdrop-filter: blur(10px);
+    font-size: var(--font-size-sm);
+    color: rgba(180, 170, 200, 0.85);
+    max-width: 260px;
+    display: none;
+}
+
+.info-panel h3 {
+    font-size: var(--font-size-base);
+    color: rgba(138, 110, 180, 0.9);
+    margin-bottom: var(--space-12);
+    font-weight: var(--font-weight-semibold);
+}
+
+.instructions {
+    top: var(--space-24);
+    right: var(--space-24);
+    background: rgba(15, 15, 25, 0.85);
+    padding: var(--space-16);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(80, 70, 100, 0.3);
+    backdrop-filter: blur(10px);
+    font-size: var(--font-size-xs);
+    color: rgba(180, 170, 200, 0.85);
+    max-width: 220px;
+    display: none;
+}
+
+.instructions h4 {
+    font-size: var(--font-size-sm);
+    color: rgba(138, 110, 180, 0.9);
+    margin-bottom: var(--space-8);
+    font-weight: var(--font-weight-semibold);
+}
+
+.instructions ul {
+    list-style: none;
+    padding: 0;
+}
+
+.instructions li {
+    margin: var(--space-8) 0;
+    padding-left: var(--space-16);
+    position: relative;
+}
+
+.instructions li:before {
+    content: "→";
+    position: absolute;
+    left: 0;
+    color: rgba(138, 110, 180, 0.6);
+}
+
+.artist-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(10, 10, 15, 0.96);
+    backdrop-filter: blur(15px);
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.artist-modal.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background: rgba(20, 18, 30, 0.95);
+    border: 1px solid rgba(100, 80, 140, 0.3);
+    border-radius: var(--radius-lg);
+    max-width: 800px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: var(--space-32);
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+}
+
+.modal-close {
+    position: absolute;
+    top: var(--space-16);
+    right: var(--space-16);
+    background: transparent;
+    border: none;
+    color: rgba(138, 110, 180, 0.8);
+    font-size: 32px;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-base);
+    transition: all 0.2s ease;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    background: rgba(80, 50, 120, 0.2);
+    transform: scale(1.1);
+}
+
+.modal-content h2 {
+    font-size: var(--font-size-3xl);
+    color: rgba(138, 110, 180, 0.95);
+    margin-bottom: var(--space-24);
+    text-align: center;
+}
+
+.modal-body {
+    color: rgba(180, 170, 200, 0.85);
+    line-height: 1.7;
+}
+
+.modal-body h3 {
+    font-size: var(--font-size-lg);
+    color: rgba(138, 110, 180, 0.9);
+    margin-top: var(--space-24);
+    margin-bottom: var(--space-12);
+}
+
+.modal-body h3:first-child {
+    margin-top: 0;
+}
+
+.modal-body p {
+    margin-bottom: var(--space-16);
+    font-size: var(--font-size-base);
+}
+
+.footer-branding {
+    position: fixed;
+    bottom: var(--space-16);
+    right: var(--space-24);
+    font-size: var(--font-size-xs);
+    color: rgba(138, 110, 180, 0.3);
+    font-family: var(--font-family-base);
+    letter-spacing: 0.02em;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.footer-branding a {
+    color: rgba(138, 110, 180, 0.4);
+    text-decoration: none;
+    transition: color 0.3s ease;
+    pointer-events: auto;
+}
+
+.footer-branding a:hover {
+    color: rgba(138, 110, 180, 0.7);
+}
+
+@media (max-width: 768px) {
+    .info-panel, .instructions {
+        font-size: var(--font-size-xs);
+        padding: var(--space-12);
+        max-width: 180px;
+    }
+    
+    .controls-bar {
+        gap: var(--space-8);
+        padding: var(--space-8) var(--space-16);
+    }
+    
+    .slider {
+        width: 70px;
+    }
+    
+    .footer-branding {
+        bottom: 90px;
+    }
+}
+
+.audio-indicator {
+    top: var(--space-24);
+    right: var(--space-24);
+    background: rgba(15, 15, 25, 0.85);
+    padding: var(--space-12) var(--space-16);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(80, 70, 100, 0.3);
+    backdrop-filter: blur(10px);
+    display: none;
+    transition: all 0.3s ease;
+}
+
+.audio-indicator.active {
+    display: block;
+}
+
+.audio-indicator.muted {
+    opacity: 0.3;
+}
+
+.audio-indicator.fear-pulse {
+    animation: fearPulse 0.5s ease-out;
+}
+
+.audio-indicator-content {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+}
+
+.audio-wave {
+    filter: drop-shadow(0 0 8px rgba(120, 80, 160, 0.5));
+}
+
+.pulse-ring {
+    fill: none;
+    stroke: rgba(120, 80, 160, 0.4);
+    stroke-width: 2;
+    animation: pulseRing 2s ease-in-out infinite;
+}
+
+.wave-bar {
+    stroke: rgba(138, 110, 180, 0.9);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    fill: none;
+}
+
+.wave-1 { animation: waveBar 1.2s ease-in-out infinite 0s; }
+.wave-2 { animation: waveBar 1.2s ease-in-out infinite 0.15s; }
+.wave-3 { animation: waveBar 1.2s ease-in-out infinite 0.3s; }
+.wave-4 { animation: waveBar 1.2s ease-in-out infinite 0.45s; }
+.wave-5 { animation: waveBar 1.2s ease-in-out infinite 0.6s; }
+
+.audio-label {
+    font-size: var(--font-size-xs);
+    color: rgba(138, 110, 180, 0.9);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+}
+
+@keyframes pulseRing {
+    0%, 100% {
+        r: 15;
+        opacity: 0.4;
+    }
+    50% {
+        r: 18;
+        opacity: 0.7;
+    }
+}
+
+@keyframes waveBar {
+    0%, 100% {
+        d: path('M 0 0 L 0 4');
+    }
+    50% {
+        d: path('M 0 0 L 0 12');
+    }
+}
+
+@keyframes fearPulse {
+    0% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 8px rgba(120, 80, 160, 0.5));
+    }
+    50% {
+        transform: scale(1.2);
+        filter: drop-shadow(0 0 20px rgba(138, 110, 180, 1));
+    }
+    100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 8px rgba(120, 80, 160, 0.5));
+    }
+}
+
+@media (max-width: 768px) {
+    .audio-indicator {
+        top: var(--space-12);
+        right: var(--space-12);
+        padding: var(--space-8) var(--space-12);
+    }
+    
+    .audio-wave {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .audio-label {
+        font-size: 10px;
+    }
+}
+
+@font-face {
+    font-family: 'FKGroteskNeue';
+    src: url('https://r2cdn.perplexity.ai/fonts/FKGroteskNeue.woff2') format('woff2');
+}
+    </style>
+</head>
+<body>
+    <canvas id="castleCanvas"></canvas>
+    
+    <!-- Intro Modal -->
+    <div class="intro-modal" id="introModal">
+        <div class="intro-content">
+            <h1>THE MODDEY DHOO</h1>
+            <p class="subtitle">Peel Castle, Isle of Man</p>
+            <p>In the depths of Peel Castle, a spectral black hound wanders the ancient corridors—the Moddey Dhoo, phantom guardian of Manx folklore. Every footstep echoes through stone, every breath a haunting whisper in the darkness.</p>
+            
+            <div class="mythology-box">
+                <strong>The Legend:</strong> The Moddey Dhoo (Black Dog) is said to haunt Peel Castle on the Isle of Man. Soldiers stationed at the castle reported seeing a large black dog with shaggy hair appearing in the guard room each night. It would lie by the fire, then walk down the passage to the captain's chambers. One soldier, emboldened by drink, challenged the phantom—he returned speechless with terror and died three days later. The castle corridors have never been silent since.
+            </div>
+            
+            <button class="begin-btn" onclick="enterCastle()">Enter the Castle</button>
+        </div>
+    </div>
+    
+    <!-- Artist Statement Modal -->
+    <div class="artist-modal" id="artistModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <h2>The Moddey Dhoo: A Digital Monument</h2>
+            <div class="modal-body">
+                <h3>Echoes Through Stone</h3>
+                <p>This work explores the concept of haunting as accumulated resonance—each footstep of the Moddey Dhoo leaves behind not just visual ripples but sonic echoes that reverberate through centuries-old stone. The phantom dog becomes both entity and emanation, a creature made of shadow and sound.</p>
+                
+                <h3>Sound as Spectral Presence</h3>
+                <p>The haunting soundscape layers ambient wind through corridors, distant whispers, stone creaks, and subsonic dread. The phantom dog's movement generates spectral whining, padding footsteps that click on flagstones, and slow breathing that suggests something neither fully alive nor dead. Sound transforms from background to character—the castle itself breathes and groans.</p>
+                
+                <h3>Fear Made Audible</h3>
+                <p>When you press SPACE, you emanate a wave of fear—visualized as warping purple energy and heard as a deep, otherworldly wail that echoes through infinite halls. This is terror crystallized, fear given both form and frequency. The sound bends space-time, creating reverberant distortions that suggest the veil between worlds has grown thin.</p>
+                
+                <h3>Relics of Dread</h3>
+                <p>Each fear wave leaves behind a glowing relic—a sigil marking where terror became tangible. These artifacts accumulate throughout your journey, creating a map of psychological resonance. The crystalline sound of their formation suggests something permanent emerging from something ephemeral: emotion solidifying into monument.</p>
+                
+                <h3>Recursive Architecture</h3>
+                <p>Peel Castle's architecture repeats infinitely—archways fold into archways, corridors spiral into darkness. This recursive geometry mirrors the nature of memory and haunting: patterns that repeat, echoes that never fully fade. The torches flicker weakly, barely holding back shadows that threaten to consume everything.</p>
+                
+                <h3>The Darkness as Character</h3>
+                <p>The dramatically darkened palette—near-black charcoal, deep purples, muted amber—makes darkness itself a presence. Shadows are not absence but entity. The phantom dog glows faintly against this suffocating blackness, otherworldly rather than illuminating. You feel genuinely unsafe, as if the darkness might reach out and pull you in.</p>
+                
+                <h3>Bird's Eye: The Ceremonial Map</h3>
+                <p>Toggle to overhead view to see the accumulated geography of haunting—concentric rings of shadow and light, relics marking moments of terror, the dog's path through recursive space. This is the mandala of fear, the sacred geometry of dread made visible.</p>
+                
+                <h3>A Place Where Echoes Never Die</h3>
+                <p>In this digital monument, time collapses. The footsteps of the Moddey Dhoo from centuries past mix with your own. Sonic and visual echoes layer infinitely. The boundary between observer and observed dissolves. You are not watching a haunting—you are participating in one, adding your own reverberations to corridors that will never truly be silent.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="ui-overlay info-panel" id="infoPanel">
+        <h3>The Moddey Dhoo</h3>
+        <p>Phantom black dog haunting the corridors of Peel Castle. Each movement creates spectral echoes through ancient stone.</p>
+        <p style="margin-top: var(--space-12); font-style: italic; font-size: var(--font-size-xs); line-height: 1.5;">"In the darkness, footsteps that were never truly footsteps, breathing that was never truly breath..."</p>
+    </div>
+    
+    <!-- Audio Visual Indicator -->
+    <div class="ui-overlay audio-indicator" id="audioIndicator">
+        <div class="audio-indicator-content">
+            <svg class="audio-wave" width="40" height="40" viewBox="0 0 40 40">
+                <circle class="pulse-ring" cx="20" cy="20" r="15" />
+                <path class="wave-bar wave-1" d="M 8 20 L 8 20" />
+                <path class="wave-bar wave-2" d="M 14 20 L 14 20" />
+                <path class="wave-bar wave-3" d="M 20 20 L 20 20" />
+                <path class="wave-bar wave-4" d="M 26 20 L 26 20" />
+                <path class="wave-bar wave-5" d="M 32 20 L 32 20" />
+            </svg>
+            <span class="audio-label">Audio Active</span>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="ui-overlay instructions" id="instructions">
+        <h4>Controls</h4>
+        <ul>
+            <li>Arrow Keys / WASD: Move phantom dog</li>
+            <li>Mouse Click: Move to location</li>
+            <li>SPACE: Emanate fear wave</li>
+            <li>V: Bird's eye view</li>
+            <li>I: Artist statement</li>
+            <li>P: Pause</li>
+        </ul>
+    </div>
+    
+    <!-- Controls Bar -->
+    <div class="ui-overlay controls-bar" id="controlsBar" style="display: none;">
+        <div class="control-group">
+            <label class="control-label" for="intensitySlider">Intensity</label>
+            <input type="range" id="intensitySlider" class="slider" min="0.3" max="2" step="0.1" value="1">
+        </div>
+        <div class="control-group">
+            <label class="control-label" for="volumeSlider">Volume</label>
+            <input type="range" id="volumeSlider" class="slider" min="0" max="1" step="0.05" value="0.5">
+        </div>
+        <button class="btn" id="muteBtn">🔊 Mute</button>
+        <button class="btn" id="pauseBtn">Pause</button>
+        <button class="btn" id="viewBtn">Bird's Eye (V)</button>
+        <button class="btn" id="resetBtn">Reset</button>
+        <button class="btn" id="infoBtn">Info (I)</button>
+    </div>
+
+    <!-- Footer Branding -->
+    <div class="footer-branding">
+        digital monument by <a href="https://unearth.im" target="_blank">unearth.im</a>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

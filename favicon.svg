@@ -1,0 +1,19 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+    <!-- 
+        Favicon for The Moddey Dhoo
+        An unearth.im Digital Monument
+        Theme: A minimalist representation of the guard's lantern flame.
+        Colors:
+        - Flame: #d4a373 (Old Gold)
+        - Background: #050505 (Deep Black)
+    -->
+    <defs>
+        <radialGradient id="flameGradient" cx="50%" cy="80%" r="70%">
+            <stop offset="0%" stop-color="#ffefd5" /> <!-- PapayaWhip - bright center -->
+            <stop offset="50%" stop-color="#d4a373" /> <!-- Old Gold -->
+            <stop offset="100%" stop-color="#a93400" stop-opacity="0.5" /> <!-- Burnt Sienna -->
+        </radialGradient>
+    </defs>
+    <rect width="64" height="64" rx="12" fill="#050505"/>
+    <path d="M32 12 C 42 28, 42 40, 32 52 C 22 40, 22 28, 32 12 Z" fill="url(#flameGradient)" />
+</svg>
